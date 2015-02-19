@@ -36,6 +36,7 @@ import java.util.Date;
 import lombok.Data;
 
 import com.google.common.base.Objects;
+import com.google.common.base.Strings;
 
 @Data
 public class UIUser {
@@ -252,22 +253,15 @@ public class UIUser {
 
 		public UIUser build() {
 			return new UIUser(
-					nullToEmpty(login), nullToEmpty(password), nullToEmpty(firstName), nullToEmpty(lastName),
-					nullToEmpty(commonName), mailboxHidden, mailboxArchive,
-					nullToEmpty(delegation), nullToEmpty(title), dateBegin, dateExpire,
-					noExpire, nullToEmpty(phone), nullToEmpty(phone2), nullToEmpty(phoneMobile),
-					nullToEmpty(phoneFax), nullToEmpty(phoneFax2), nullToEmpty(company), nullToEmpty(direction), 
-					nullToEmpty(service), nullToEmpty(address1), nullToEmpty(address2), nullToEmpty(address3),
-					nullToEmpty(addressZip), nullToEmpty(addressTown), nullToEmpty(addressCedex), 
-					nullToEmpty(description), emailInternalEnabled, nullToEmpty(emailAddress),
+					Strings.nullToEmpty(login), Strings.nullToEmpty(password), Strings.nullToEmpty(firstName), Strings.nullToEmpty(lastName),
+					Strings.nullToEmpty(commonName), mailboxHidden, mailboxArchive,
+					Strings.nullToEmpty(delegation), Strings.nullToEmpty(title), dateBegin, dateExpire,
+					noExpire, Strings.nullToEmpty(phone), Strings.nullToEmpty(phone2), Strings.nullToEmpty(phoneMobile),
+					Strings.nullToEmpty(phoneFax), Strings.nullToEmpty(phoneFax2), Strings.nullToEmpty(company), Strings.nullToEmpty(direction), 
+					Strings.nullToEmpty(service), Strings.nullToEmpty(address1), Strings.nullToEmpty(address2), Strings.nullToEmpty(address3),
+					Strings.nullToEmpty(addressZip), Strings.nullToEmpty(addressTown), Strings.nullToEmpty(addressCedex), 
+					Strings.nullToEmpty(description), emailInternalEnabled, Strings.nullToEmpty(emailAddress),
 					kind, profile);
-		}
-		
-		private String nullToEmpty(String string) {
-			if (string == null) {
-				return "";
-			}
-			return string;
 		}
 	}
 	
