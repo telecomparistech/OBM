@@ -37,7 +37,6 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.FluentWait;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 import com.google.common.base.Predicate;
@@ -108,7 +107,7 @@ public class ContactPage extends RootPage {
 	}
 
 	public void managePopup(final boolean accept) {
-		new FluentWait<WebDriver>(driver).until(new Predicate<WebDriver>() {
+		new WebDriverWait(driver, 10).until(new Predicate<WebDriver>() {
 			@Override
 			public boolean apply(WebDriver input) {
 				Alert alert = driver.switchTo().alert();
