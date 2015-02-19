@@ -61,6 +61,7 @@ public class ContactStepdefs {
 	
 	private UIUser uiUser;
 	private UIDomain uiDomain;
+	private UIContact uiContact;
 	
 	private CreateContactPage createContactPage;
 	private CreateContactPage processedCreateContactPage;
@@ -71,6 +72,8 @@ public class ContactStepdefs {
 	public void setUp() {
 		uiUser = UIUser.user();
 		uiDomain = UIDomain.obmDomain();
+		uiContact = UIContact.builder().build();
+		
 
 		LoginPage loginPage = pageFactory.create(driver, LoginPage.class);
 		loginPage.open();
@@ -103,7 +106,7 @@ public class ContactStepdefs {
 	
 	@When("user creates a contact without lastname")
 	public void createContactWithoutLastname() {
-		processedCreateContactPage = createContactPage.createContactAsExpectingError(new UIContact());
+		processedCreateContactPage = createContactPage.createContactAsExpectingError(uiContact);
 	}
 	
 	@Then("creation fails")

@@ -31,14 +31,61 @@
  * ***** END LICENSE BLOCK ***** */
 package com.linagora.obm.ui.bean;
 
+import com.google.common.base.Strings;
+
 import lombok.Data;
 
 @Data
 public class UIContact {
 	
-	public String firstName;
-	public String lastName;
-	public String companyField;
-	public boolean mailokField;
-	public boolean newsletterField;
+	public static Builder builder() {
+		return new Builder();
+	}
+
+	public static class Builder {
+		public String firstName;
+		public String lastName;
+		public String companyField;
+		public boolean mailokField;
+		public boolean newsletterField;
+		
+		
+		public Builder firstName(String firstName) {
+			this.firstName = firstName;
+			return this;
+		}
+		
+		public Builder lastName(String lastName) {
+			this.lastName = lastName;
+			return this;
+		}
+		
+		public Builder companyField(String companyField) {
+			this.companyField = companyField;
+			return this;
+		}
+		
+		public Builder mailokField(boolean mailokField) {
+			this.mailokField = mailokField;
+			return this;
+		}
+		
+		public Builder newsletterField(boolean newsletterField) {
+			this.newsletterField = newsletterField;
+			return this;
+		}
+	
+		public UIContact build() {
+			return new UIContact(
+					Strings.nullToEmpty(firstName), Strings.nullToEmpty(lastName), Strings.nullToEmpty(companyField),
+					mailokField, newsletterField);
+		}
+	
+	}
+	
+	private final String firstName;
+	private final String lastName;
+	private final String companyField;
+	private final boolean mailokField;
+	private final boolean newsletterField;
 }
