@@ -36,8 +36,9 @@ import org.easymock.IMocksControl;
 import org.junit.Before;
 import org.junit.Test;
 import org.obm.imap.sieve.SieveClient;
-import org.obm.imap.sieve.SieveScript;
+import org.obm.imap.sieve.SieveException;
 
+import com.fluffypeople.managesieve.SieveScript;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 
@@ -50,6 +51,7 @@ public class SieveScriptUpdaterTest {
 	private IMocksControl mocksControl;
 	private SieveClient mockSieveClient;
 	private SieveBuilder mockSieveBuilder;
+	private final static String NO_CONTENT = null;
 
 	@Before
 	public void setUp() {
@@ -59,20 +61,22 @@ public class SieveScriptUpdaterTest {
 	}
 
 	@Test
-	public void updaterShouldUpdateExistingScript() {
+	public void updaterShouldUpdateExistingScript() throws SieveException {
 		ObmUser user = ObmUser.builder()
 				.uid(1)
 				.login(UserLogin.valueOf("scipio.africanus"))
 				.domain(ObmDomain.builder().name("carthage.tn").build())
 				.build();
 		EasyMock.expect(mockSieveClient.listscripts()).andReturn(ImmutableList.of(
-				new SieveScript("i am not active", false),
-				new SieveScript("i am active", true),
-				new SieveScript("i am also not active", false)));
-		EasyMock.expect(mockSieveClient.getScriptContent("i am active")).andReturn("old content");
+				new SieveScript("i am not active", NO_CONTENT, false),
+				new SieveScript("i am active", NO_CONTENT, true),
+				new SieveScript("i am also not active", NO_CONTENT, false)));
+		EasyMock.expect(mockSieveClient.getScriptContent("i am active")).andReturn(
+				Optional.of(new SieveScript("i am active", "old content", true)));
 		EasyMock.expect(mockSieveBuilder.buildFromOldContent("old content")).andReturn(
 				Optional.of("new content"));
-		EasyMock.expect(mockSieveClient.putscript("i am active", "new content")).andReturn(true);
+		mockSieveClient.putscript("i am active", "new content");
+		EasyMock.expectLastCall();
 
 		mocksControl.replay();
 		SieveScriptUpdater updater = new SieveScriptUpdater(user, mockSieveClient, mockSieveBuilder);
@@ -81,7 +85,7 @@ public class SieveScriptUpdaterTest {
 	}
 
 	@Test
-	public void updaterShouldDeleteExistingScriptIfUserContentIsMissingAndNoObmRules() {
+	public void updaterShouldDeleteExistingScriptIfUserContentIsMissingAndNoObmRules() throws SieveException {
 		ObmUser user = ObmUser.builder()
 				.uid(1)
 				.login(UserLogin.valueOf("scipio.africanus"))
@@ -89,10 +93,11 @@ public class SieveScriptUpdaterTest {
 				.build();
 		Optional<String> absent = Optional.absent();
 		EasyMock.expect(mockSieveClient.listscripts()).andReturn(ImmutableList.of(
-				new SieveScript("i am not active", false),
-				new SieveScript("i am active", true),
-				new SieveScript("i am also not active", false)));
-		EasyMock.expect(mockSieveClient.getScriptContent("i am active")).andReturn("old content");
+				new SieveScript("i am not active", NO_CONTENT, false),
+				new SieveScript("i am active", NO_CONTENT, true),
+				new SieveScript("i am also not active", NO_CONTENT, false)));
+		EasyMock.expect(mockSieveClient.getScriptContent("i am active")).andReturn(
+				Optional.of(new SieveScript("i am active", "old content", true)));
 		EasyMock.expect(mockSieveBuilder.buildFromOldContent("old content")).andReturn(
 				absent);
 		mockSieveClient.activate("");
@@ -106,19 +111,18 @@ public class SieveScriptUpdaterTest {
 	}
 
 	@Test
-	public void updaterShouldCreateNewScriptIfNoScriptIsActive() {
+	public void updaterShouldCreateNewScriptIfNoScriptIsActive() throws SieveException {
 		ObmUser user = ObmUser.builder()
 				.uid(1)
 				.login(UserLogin.valueOf("scipio.africanus"))
 				.domain(ObmDomain.builder().name("carthage.tn").build())
 				.build();
 		EasyMock.expect(mockSieveClient.listscripts()).andReturn(ImmutableList.of(
-				new SieveScript("i am not active", false),
-				new SieveScript("i am also not active", false)));
+				new SieveScript("i am not active", NO_CONTENT, false),
+				new SieveScript("i am also not active", NO_CONTENT, false)));
 		EasyMock.expect(mockSieveBuilder.build()).andReturn(Optional.of("new content"));
-		EasyMock.expect(
-				mockSieveClient.putscript("scipio.africanus-carthage.tn.sieve", "new content"))
-				.andReturn(true);
+        mockSieveClient.putscript("scipio.africanus-carthage.tn.sieve", "new content");
+        EasyMock.expectLastCall();
 		mockSieveClient.activate("scipio.africanus-carthage.tn.sieve");
 		EasyMock.expectLastCall();
 
@@ -129,7 +133,7 @@ public class SieveScriptUpdaterTest {
 	}
 
 	@Test
-	public void updaterShouldCreateNewScriptIfNoExistingScripts() {
+	public void updaterShouldCreateNewScriptIfNoExistingScripts() throws SieveException {
 		ObmUser user = ObmUser.builder()
 				.uid(1)
 				.login(UserLogin.valueOf("scipio.africanus"))
@@ -138,9 +142,8 @@ public class SieveScriptUpdaterTest {
 		List<SieveScript> empty = ImmutableList.of();
 		EasyMock.expect(mockSieveClient.listscripts()).andReturn(empty);
 		EasyMock.expect(mockSieveBuilder.build()).andReturn(Optional.of("new content"));
-		EasyMock.expect(
-				mockSieveClient.putscript("scipio.africanus-carthage.tn.sieve", "new content"))
-				.andReturn(true);
+        mockSieveClient.putscript("scipio.africanus-carthage.tn.sieve", "new content");
+        EasyMock.expectLastCall();
 		mockSieveClient.activate("scipio.africanus-carthage.tn.sieve");
 		EasyMock.expectLastCall();
 
@@ -151,7 +154,7 @@ public class SieveScriptUpdaterTest {
 	}
 
 	@Test
-	public void updaterShouldNotCreateNewScriptIfNoExistingScriptsAndNoObmRule() {
+	public void updaterShouldNotCreateNewScriptIfNoExistingScriptsAndNoObmRule() throws SieveException {
 		ObmUser user = ObmUser.builder()
 				.uid(1)
 				.login(UserLogin.valueOf("scipio.africanus"))

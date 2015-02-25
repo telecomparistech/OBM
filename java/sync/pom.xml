@@ -604,6 +604,11 @@ org.eclipse.jdt.core.compiler.source=1.7
 				<version>${jackson.version}</version>
 			</dependency>
 			<dependency>
+				<groupId>com.fluffypeople</groupId>
+				<artifactId>managesievej</artifactId>
+				<version>0.1.0</version>
+			</dependency>
+			<dependency>
 				<groupId>com.github.rest-driver</groupId>
 				<artifactId>rest-client-driver</artifactId>
 				<version>1.1.37</version>

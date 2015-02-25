@@ -26,6 +26,7 @@ import org.obm.domain.dao.UserDao;
 import org.obm.domain.dao.UserSystemDao;
 import org.obm.guice.GuiceModule;
 import org.obm.guice.GuiceRunner;
+import org.obm.imap.sieve.SieveException;
 import org.obm.provisioning.Group;
 import org.obm.provisioning.ProfileId;
 import org.obm.provisioning.ProfileName;
@@ -2481,7 +2482,7 @@ public class BatchProcessorImplUserTest extends BatchProcessorImplTestEnv {
 		return cyrusManager;
 	}
 
-	private void expectSieveScriptUpdate(ObmUser user) {
+	private void expectSieveScriptUpdate(ObmUser user) throws SieveException {
 		SieveScriptUpdater mockUpdater = this.mocksControl.createMock(SieveScriptUpdater.class);
 		expect(this.sieveScriptUpdaterFactory.build(obmCyrusUser, user)).andReturn(mockUpdater);
 		mockUpdater.update();

@@ -32,8 +32,9 @@ package org.obm.provisioning.processing.impl.users.sieve;
 import java.util.List;
 
 import org.obm.imap.sieve.SieveClient;
-import org.obm.imap.sieve.SieveScript;
+import org.obm.imap.sieve.SieveException;
 
+import com.fluffypeople.managesieve.SieveScript;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
@@ -52,7 +53,7 @@ public class SieveScriptUpdater {
 		this.sieveBuilder = sieveBuilder;
 	}
 
-	public void update() {
+	public void update() throws SieveException {
 		List<SieveScript> scripts = this.sieveClient.listscripts();
 		Optional<SieveScript> maybeActiveScript = Iterables.tryFind(scripts,
 				new Predicate<SieveScript>() {
@@ -64,7 +65,8 @@ public class SieveScriptUpdater {
 				});
 		if (maybeActiveScript.isPresent()) {
 			SieveScript script = maybeActiveScript.get();
-			String oldContent = sieveClient.getScriptContent(script.getName());
+			Optional<SieveScript> maybeOldScript = sieveClient.getScriptContent(script.getName());
+			String oldContent = maybeOldScript.isPresent() ? maybeOldScript.get().getBody() : "";
 			Optional<String> maybeNewContent = sieveBuilder.buildFromOldContent(oldContent);
 			if (maybeNewContent.isPresent()) {
 				this.sieveClient.putscript(script.getName(), maybeNewContent.get());

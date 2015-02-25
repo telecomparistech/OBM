@@ -36,6 +36,12 @@ public class SieveException extends Exception {
 
 	private static final long serialVersionUID = -4049948643858366581L;
 
+	public SieveException() {}
+
+	public SieveException(Throwable cause) {
+		super(cause);
+	}
+
 	public SieveException(String message, Throwable cause) {
 		super(message, cause);
 	}

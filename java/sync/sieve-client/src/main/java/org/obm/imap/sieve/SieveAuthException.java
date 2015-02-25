@@ -29,13 +29,10 @@
  * ***** END LICENSE BLOCK ***** */
 package org.obm.imap.sieve;
 
-import com.google.inject.AbstractModule;
+public class SieveAuthException extends SieveException {
+	public SieveAuthException() {}
 
-public class SieveClientModule extends AbstractModule {
-
-	@Override
-	protected void configure() {
-		bind(SieveClient.class);
+	public SieveAuthException(Throwable t) {
+		super(t);
 	}
-
 }

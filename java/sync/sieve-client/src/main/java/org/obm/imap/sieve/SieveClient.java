@@ -32,16 +32,22 @@
 
 package org.obm.imap.sieve;
 
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
+import java.io.IOException;
 import java.util.List;
+
+import javax.security.sasl.SaslException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Charsets;
+import com.fluffypeople.managesieve.ManageSieveClient;
+import com.fluffypeople.managesieve.ManageSieveResponse;
+import com.fluffypeople.managesieve.ParseException;
+import com.fluffypeople.managesieve.ServerCapabilities;
+import com.fluffypeople.managesieve.SieveScript;
+import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 
 /**
  * Client API to cyrus sieve server
@@ -52,65 +58,108 @@ public class SieveClient {
 
 	private static final Logger logger = LoggerFactory
 			.getLogger(SieveClient.class);
-	
-	private final SieveClientSupport cs;
+
 	private final String host;
 	private final int port;
-	
+	private final AuthenticationIdentity authIdentity;
+	private final AuthorizationIdentity autzIdentity;
+	private final ManageSieveClient manageSieveClient;
+
 	public SieveClient(String hostname, int port, AuthenticationIdentity authIdentity,
 			AuthorizationIdentity autzIdentity) {
 		this.host = hostname;
 		this.port = port;
-
-		cs = new SieveClientSupport(authIdentity, autzIdentity);
+		this.authIdentity = authIdentity;
+		this.autzIdentity = autzIdentity;
+		this.manageSieveClient = new ManageSieveClient();
 	}
 
-	public boolean login() {
-		if (logger.isDebugEnabled()) {
-			logger.debug("login called");
+	public void login() throws SieveException {
+		logger.debug("login called");
+		try {
+			if (!this.manageSieveClient.connect(host, port).isOk()) {
+				throw new SieveConnectionException();
+			}
+			ServerCapabilities capabilities = this.manageSieveClient.getCapabilities();
+			
+			if (capabilities.hasTLS()) {
+				if (!this.manageSieveClient.starttls().isOk()) {
+					throw new SieveConnectionException();
+				}
+			}
+			if (!this.manageSieveClient.authenticate(this.authIdentity.getLogin(),
+					this.authIdentity.getPassword().getStringValue(),
+					this.autzIdentity.getLogin()).isOk()) {
+				throw new SieveAuthException();
+			}
+		} catch (ParseException e) {
+			throw new SieveParseException(e);
+		} catch (SaslException e) {
+			throw new SieveAuthException(e);
+		} catch (IOException e) {
+			throw new SieveException(e);
 		}
-		SieveClientHandler handler = new SieveClientHandler(cs);
-		SocketAddress sa = new InetSocketAddress(host, port);
-		if (cs.login(sa, handler)) {
-			return true;
+	}
+
+	public List<SieveScript> listscripts() throws SieveException {
+		List<SieveScript> out = Lists.newArrayList();
+		try {
+			if (!this.manageSieveClient.listscripts(out).isOk()) {
+				throw new SieveException();
+			}
+			return ImmutableList.copyOf(out);
+		} catch (IOException | ParseException e) {
+			throw new SieveException(e);
 		}
-		return false;
+
 	}
 
-	public List<SieveScript> listscripts() {
-		return cs.listscripts();
+	public void putscript(String name, String scriptContent) throws SieveException {
+		try {
+			if (!this.manageSieveClient.putscript(name, scriptContent).isOk()) {
+				throw new SieveException();
+			}
+		} catch (IOException | ParseException e) {
+			throw new SieveException(e);
+		}
 	}
 
-	public boolean putscript(String name, String scriptContent) {
-		return cs.putscript(name, new ByteArrayInputStream(scriptContent.getBytes(Charsets.UTF_8)));
+	public void unauthenticate() throws SieveException {
+		try {
+			this.manageSieveClient.logout();
+		} catch (IOException | ParseException e) {
+			throw new SieveException(e);
+		}
 	}
 
-	public boolean putscript(String name, InputStream scriptContent) {
-		return cs.putscript(name, scriptContent);
+	public Optional<SieveScript> getScriptContent(String name) throws SieveException {
+		SieveScript out = new SieveScript();
+		out.setName(name);
+		ManageSieveResponse response;
+		try {
+			response = this.manageSieveClient.getScript(out);
+		} catch (IOException | ParseException e) {
+			throw new SieveException(e);
+		}
+		return response.isOk() ? Optional.<SieveScript>of(out) : Optional.<SieveScript>absent();
 	}
 
-	public void unauthenticate() {
-		cs.unauthenticate();
-	}
-	
-	public void logout() throws InterruptedException {
-		cs.logout();
-	}
-
-	public boolean deletescript(String name) {
-		return cs.deletescript(name);
+	public void activate(String name) throws SieveException {
+		try {
+			if (!this.manageSieveClient.setactive(name).isOk()) {
+				throw new SieveException();
+			}
+		} catch (IOException | ParseException e) {
+			throw new SieveException(e);
+		}
 	}
 
-	public String getScript() {
-		return "require [ \"fileinto\", \"imapflags\", \"vacation\" ];\n";
-	}
-
-	public String getScriptContent(String name) {
-		return cs.getScriptContent(name);
-	}
-
-	public void activate(String newName) {
-		cs.activate(newName);
+	public boolean deletescript(String name) throws SieveException {
+		try {
+			return this.manageSieveClient.deletescript(name).isOk();
+		} catch (IOException | ParseException e) {
+			throw new SieveException(e);
+		}
 	}
 
 }

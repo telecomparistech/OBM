@@ -32,6 +32,7 @@ package org.obm.provisioning.processing.impl.users;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.obm.annotations.transactional.Transactional;
 import org.obm.cyrus.imap.admin.CyrusManager;
+import org.obm.imap.sieve.SieveException;
 import org.obm.provisioning.beans.Batch;
 import org.obm.provisioning.beans.HttpVerb;
 import org.obm.provisioning.beans.Operation;
@@ -81,19 +82,24 @@ public abstract class AbstractModifyUserOperationProcessor extends AbstractUserO
 		if (newUser.isEmailAvailable()) {
 			updateUserMailbox(newUser);
 		}
-
-		if (existingUser.isArchived() && !newUser.isArchived()) {
-			createUserInLdapAndAddUserToExistingGroups(newUser, getDefaultGroup(domain));
-			if (newUser.isEmailAvailable()) {
-				this.sieveScriptUpdaterFactory.build(findCyrusUser(), newUser).update();
+		try {
+			if (existingUser.isArchived() && !newUser.isArchived()) {
+				createUserInLdapAndAddUserToExistingGroups(newUser, getDefaultGroup(domain));
+				if (newUser.isEmailAvailable()) {
+					this.sieveScriptUpdaterFactory.build(findCyrusUser(), newUser).update();
+				}
+			} else if (!existingUser.isArchived() && newUser.isArchived()) {
+				deleteUserInLdap(newUser);
+			} else {
+				modifyUserInLdap(newUser, existingUser);
+				if (newUser.isEmailAvailable()
+						&& (!existingUser.getNomad().equals(newUser.getNomad()))) {
+					this.sieveScriptUpdaterFactory.build(findCyrusUser(), newUser).update();
+				}
 			}
-		} else if (!existingUser.isArchived() && newUser.isArchived()) {
-			deleteUserInLdap(newUser);
-		} else {
-			modifyUserInLdap(newUser, existingUser);
-			if (newUser.isEmailAvailable() && (!existingUser.getNomad().equals(newUser.getNomad()))) {
-				this.sieveScriptUpdaterFactory.build(findCyrusUser(), newUser).update();
-			}
+		}
+		catch (SieveException e) {
+			throw new ProcessingException(e);
 		}
 		updateUserInPTables(newUser);
 	}

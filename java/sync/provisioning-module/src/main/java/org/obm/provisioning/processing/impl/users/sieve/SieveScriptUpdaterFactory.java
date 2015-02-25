@@ -30,6 +30,7 @@
 package org.obm.provisioning.processing.impl.users.sieve;
 
 import org.obm.imap.sieve.SieveClient;
+import org.obm.imap.sieve.SieveException;
 
 import com.google.inject.Inject;
 
@@ -45,7 +46,7 @@ public class SieveScriptUpdaterFactory {
 		this.sieveClientFactory = sieveClientFactory;
 	}
 
-	public SieveScriptUpdater build(ObmSystemUser authUser, ObmUser autzUser) {
+	public SieveScriptUpdater build(ObmSystemUser authUser, ObmUser autzUser) throws SieveException {
 		SieveClient sieveClient = this.sieveClientFactory.build(authUser, autzUser);
 		return new SieveScriptUpdater(autzUser, sieveClient,
 				new SieveBuilder(autzUser));

@@ -35,6 +35,7 @@ import java.util.Set;
 import org.obm.annotations.transactional.Transactional;
 import org.obm.cyrus.imap.admin.CyrusManager;
 import org.obm.domain.dao.EntityRightDao;
+import org.obm.imap.sieve.SieveException;
 import org.obm.provisioning.Group;
 import org.obm.provisioning.beans.Batch;
 import org.obm.provisioning.beans.HttpVerb;
@@ -99,7 +100,11 @@ public class CreateUserOperationProcessor extends AbstractUserOperationProcessor
 		if (user.isEmailAvailable()) {
 			createUserMailboxes(userFromDao);
 			if (!user.isArchived()) {
-				sieveScriptUpdaterFactory.build(this.findCyrusUser(), userFromDao).update();
+				try {
+					sieveScriptUpdaterFactory.build(this.findCyrusUser(), userFromDao).update();
+				} catch (SieveException e) {
+					throw new ProcessingException(e);
+				}
 			}
 		}
 
