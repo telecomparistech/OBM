@@ -31,6 +31,7 @@ package org.obm.sync.services;
 
 import org.obm.sync.calendar.Attendee;
 import org.obm.sync.calendar.ContactAttendee;
+import org.obm.sync.calendar.GroupAttendee;
 import org.obm.sync.calendar.ResourceAttendee;
 import org.obm.sync.calendar.UserAttendee;
 
@@ -44,6 +45,8 @@ public interface AttendeeService {
 
 	ResourceAttendee findResourceAttendee(String name, String email, ObmDomain domain, Integer userId);
 	
+	GroupAttendee findGroupAttendee(String name, String email, ObmDomain domain);
+
 	Attendee findAttendee(String name, String email, boolean createContactIfNeeded, ObmDomain domain, Integer userId);
 	
 }

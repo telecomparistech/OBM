@@ -127,6 +127,7 @@ public class AttendeeServiceJdbcImplTest {
 	private UserDao userDao;
 	private ContactDao contactDao;
 	private ResourceDao resourceDao;
+	private GroupDao groupDao;
 	private AttendeeService attendeeService;
 	private ObmDomain domain;
 	private ObmUser johnDoe;
@@ -156,8 +157,12 @@ public class AttendeeServiceJdbcImplTest {
 				.addMockedMethod("findAttendeeResourceFromEmailForUser")
 				.addMockedMethod("findAttendeeResourceFromNameForUser")
 				.createMock(mocksControl);
+		groupDao = createMockBuilder(GroupDao.class)
+				.withConstructor(ObmHelper.class)
+				.withArgs(obmHelper)
+				.createMock(mocksControl);
 		
-		attendeeService = new AttendeeServiceJdbcImpl(userDao, contactDao, resourceDao);
+		attendeeService = new AttendeeServiceJdbcImpl(userDao, groupDao, contactDao, resourceDao);
 	}
 	
 	@After

@@ -30,9 +30,14 @@
 package fr.aliacom.obm.common.calendar;
 
 import org.obm.domain.dao.UserDao;
+import org.obm.provisioning.Group;
+import org.obm.provisioning.dao.GroupDao;
+import org.obm.provisioning.dao.exceptions.DaoException;
+import org.obm.provisioning.dao.exceptions.GroupNotFoundException;
 import org.obm.sync.book.Contact;
 import org.obm.sync.calendar.Attendee;
 import org.obm.sync.calendar.ContactAttendee;
+import org.obm.sync.calendar.GroupAttendee;
 import org.obm.sync.calendar.ResourceAttendee;
 import org.obm.sync.calendar.UserAttendee;
 import org.obm.sync.services.AttendeeService;
@@ -60,12 +65,14 @@ public class AttendeeServiceJdbcImpl implements AttendeeService {
 	private final UserDao userDao;
 	private final ContactDao contactDao;
 	private final ResourceDao resourceDao;
+	private final GroupDao groupDao;
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 
 	@Inject
 	@VisibleForTesting
-	AttendeeServiceJdbcImpl(UserDao userDao, ContactDao contactDao, ResourceDao resourceDao) {
+	AttendeeServiceJdbcImpl(UserDao userDao, GroupDao groupDao, ContactDao contactDao, ResourceDao resourceDao) {
 		this.userDao = userDao;
+		this.groupDao = groupDao;
 		this.resourceDao = resourceDao;
 		this.contactDao = contactDao;
 	}
@@ -110,6 +117,26 @@ public class AttendeeServiceJdbcImpl implements AttendeeService {
 	}
 
 	@Override
+	public GroupAttendee findGroupAttendee(String name, String email, ObmDomain domain) {
+		try {
+			Group group = this.groupDao.getByEmail(email, domain);
+
+			return GroupAttendee
+					.builder()
+					.entityId(group.getEntityId())
+					.displayName(group.getName())
+					.email(group.getEmail())
+					.build();
+		} catch (GroupNotFoundException e) {
+			logger.error("Couldn't retrieve group attendee from database.", e);
+		} catch (DaoException e) {
+			Throwables.propagate(e);
+		}
+
+		return null;
+	}
+
+	@Override
 	public ResourceAttendee findResourceAttendee(String name, String email, ObmDomain domain, Integer ownerId) {
 		try {
 			Resource resource = resourceDao.findAttendeeResourceFromEmailForUser(email, ownerId);
@@ -138,12 +165,16 @@ public class AttendeeServiceJdbcImpl implements AttendeeService {
 	@Override
 	public Attendee findAttendee(String name, String email, boolean createContactIfNeeded, ObmDomain domain, Integer ownerId) {
 		Attendee attendee = findUserAttendee(name, email, domain);
-		
+
 		if (attendee == null) {
-			attendee = findResourceAttendee(name, email, domain, ownerId);
-			
+			attendee = findGroupAttendee(name, email, domain);
 			if (attendee == null) {
-				attendee = findContactAttendee(name, email, createContactIfNeeded, domain, ownerId);
+				attendee = findResourceAttendee(name, email, domain, ownerId);
+
+				if (attendee == null) {
+					attendee = findContactAttendee(name, email, createContactIfNeeded, domain,
+							ownerId);
+				}
 			}
 		}
 		
