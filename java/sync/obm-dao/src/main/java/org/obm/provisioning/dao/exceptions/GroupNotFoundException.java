@@ -48,6 +48,10 @@ public class GroupNotFoundException extends Exception {
         super("The Group " + id + " was not found");
     }
 
+    public GroupNotFoundException(String email) {
+        super("The Group with email " + email + " was not found");
+    }
+
     public GroupExtId getExtId() {
         return extId;
     }

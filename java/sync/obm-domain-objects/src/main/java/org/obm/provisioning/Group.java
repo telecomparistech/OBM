@@ -3,6 +3,8 @@ package org.obm.provisioning;
 import java.util.Date;
 import java.util.Set;
 
+import org.obm.sync.dao.EntityId;
+
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
@@ -90,6 +92,7 @@ public class Group {
         private GroupExtId extId;
         private String name;
         private String description;
+        private EntityId entityId;
         private final ImmutableSet.Builder<ObmUser> users;
         private final ImmutableSet.Builder<Group> subgroups;
 
@@ -110,7 +113,8 @@ public class Group {
         			.name(group.name)
         			.description(group.description)
         			.users(group.users)
-        			.subgroups(group.subgroups);
+        			.subgroups(group.subgroups)
+        			.entityId(group.entityId);
         }
         
         public Builder uid(Id uid) {
@@ -183,6 +187,11 @@ public class Group {
 			return this;
 		}
 
+		public Builder entityId(EntityId entityId) {
+			this.entityId = entityId;
+			return this;
+		}
+
         public Group build() {
             Preconditions.checkState(uid != null || extId != null);
 
@@ -190,7 +199,7 @@ public class Group {
             archive = Objects.firstNonNull(archive, false);
 
             return new Group(uid, gid, extId, name, email, description, users.build(), subgroups.build(),
-            		privateGroup, archive, timecreate, timeupdate);
+                    privateGroup, archive, timecreate, timeupdate, entityId);
         }
     }
 
@@ -206,9 +215,10 @@ public class Group {
     private final String description;
     private final Set<ObmUser> users;
     private final Set<Group> subgroups;
+    private final EntityId entityId;
 
     private Group(Id uid, Integer gid, GroupExtId extId, String name, String email, String description, Set<ObmUser> users, Set<Group> subgroups,
-    		boolean privateGroup, boolean archive, Date timecreate, Date timeupdate) {
+    		boolean privateGroup, boolean archive, Date timecreate, Date timeupdate, EntityId entityId) {
 		this.uid = uid;
 		this.extId = extId;
 		this.name = name;
@@ -221,6 +231,7 @@ public class Group {
 		this.timeupdate = timeupdate;
 		this.privateGroup = privateGroup;
 		this.archive = archive;
+		this.entityId = entityId;
     }
 
     public Id getUid() {
@@ -271,9 +282,13 @@ public class Group {
         return subgroups;
     }
 
+    public EntityId getEntityId() {
+        return entityId;
+    }
+
     @Override
     public int hashCode() {
-        return Objects.hashCode(uid, extId, name, description, users, subgroups, gid, email, privateGroup, archive);
+        return Objects.hashCode(uid, extId, name, description, users, subgroups, gid, email, privateGroup, archive, entityId);
     }
 
     @Override
@@ -290,7 +305,8 @@ public class Group {
 					&& Objects.equal(gid, other.gid)
 					&& Objects.equal(email, other.email)
 					&& Objects.equal(privateGroup, other.privateGroup)
-					&& Objects.equal(archive, other.archive);
+					&& Objects.equal(archive, other.archive)
+					&& Objects.equal(entityId, other.entityId);
         }
 
         return false;
@@ -312,6 +328,7 @@ public class Group {
 				.add("timeupdate", timeupdate)
 				.add("users", users)
 				.add("subgroups", subgroups)
+				.add("entityId", entityId)
 				.toString();
     }
 

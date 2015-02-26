@@ -38,6 +38,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 import org.obm.domain.dao.UserDao;
@@ -51,9 +52,13 @@ import org.obm.provisioning.dao.exceptions.GroupNotFoundException;
 import org.obm.provisioning.dao.exceptions.GroupRecursionException;
 import org.obm.provisioning.dao.exceptions.UserNotFoundException;
 import org.obm.push.utils.JDBCUtils;
+import org.obm.sync.dao.EntityId;
 import org.obm.utils.ObmHelper;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -69,7 +74,7 @@ import fr.aliacom.obm.common.user.UserExtId;
 public class GroupDaoJdbcImpl implements GroupDao {
 
 	private static final String FIELDS = "group_id, group_ext_id, group_name, group_desc, group_timecreate, group_timeupdate, " +
-			"group_privacy, group_archive, group_email, group_gid";
+			"group_privacy, group_archive, group_email, group_gid, groupentity_entity_id";
 
     /** The first group_gid to use. UI code assumes 1000 here */
     private final int firstGidUser = 1000;
@@ -102,7 +107,10 @@ public class GroupDaoJdbcImpl implements GroupDao {
 
 	@Override
 	public Group getByGid(ObmDomain domain, int gid) throws DaoException {
-		String query = "SELECT " + FIELDS + " FROM UGroup WHERE group_domain_id = ? AND group_gid = ?";
+		String query = "SELECT " + FIELDS +
+				" FROM UGroup " +
+				"JOIN GroupEntity ON group_id=groupentity_group_id " +
+				"WHERE group_domain_id = ? AND group_gid = ?";
 
 		try (Connection conn = obmHelper.getConnection();
 				PreparedStatement ps =  conn.prepareStatement(query)) {
@@ -132,7 +140,10 @@ public class GroupDaoJdbcImpl implements GroupDao {
 
 	@Override
     public Group get(Group.Id id) throws DaoException, GroupNotFoundException {
-		String query = "SELECT " + FIELDS + " FROM UGroup WHERE group_id = ?";
+		String query = "SELECT " + FIELDS +
+				" FROM UGroup " +
+				"JOIN GroupEntity ON group_id=groupentity_group_id " +
+				"WHERE group_id = ?";
 
 		try (Connection conn = obmHelper.getConnection();
 				PreparedStatement ps = conn.prepareStatement(query)) {
@@ -160,6 +171,71 @@ public class GroupDaoJdbcImpl implements GroupDao {
             throw new DaoException(e);
         }
     }
+
+	@Override
+	public Group getByEmail(String email, ObmDomain domain) throws DaoException, GroupNotFoundException {
+		String query = "SELECT " + FIELDS +
+				" FROM UGroup " +
+				"JOIN GroupEntity ON group_id=groupentity_group_id " +
+				"WHERE group_email IN (?, ?) AND group_domain_id = ?";
+
+		try (Connection conn = obmHelper.getConnection();
+				PreparedStatement ps = conn.prepareStatement(query)) {
+
+			int idx=1;
+			ps.setString(idx++, email);
+			ps.setString(idx++, emailWithoutObmDomain(email, domain));
+			ps.setInt(idx++, domain.getId());
+			ResultSet rs = ps.executeQuery();
+
+			if (rs.next()) {
+				return groupBuilderFromCursor(rs).build();
+			}
+		} catch (SQLException e) {
+			throw new DaoException(e);
+		}
+
+		throw new GroupNotFoundException(email);
+    }
+
+	@Override
+	public Group getByEmailWithUsers(String email, ObmDomain domain) throws DaoException, GroupNotFoundException {
+		Group group = getByEmail(email, domain);
+		try (Connection conn = obmHelper.getConnection()) {
+			Set<Integer> userIds = getAllUserIdsOfGroup(conn, group.getUid());
+			List<ObmUser> users = Lists.newArrayList();
+			for (int userId : userIds) {
+				ObmUser obmUser = userDao.findUserById(userId, domain);
+				users.add(obmUser);
+			}
+			return Group.builder().from(group).users(users).build();
+		} catch (SQLException e) {
+			throw new DaoException(e);
+		}
+    }
+
+	private String emailWithoutObmDomain(String email, ObmDomain domain) {
+		List<String> splitEmail = Splitter.on('@').splitToList(email);
+		if (splitEmail.size() > 2) {
+			throw new IllegalArgumentException(String.format("More than one @ found in email address '%s'", email));
+		}
+		String emailWithoutObmDomain;
+		if (splitEmail.size() == 2) {
+			String emailWithoutDomain = splitEmail.get(0);
+			String emailDomain = splitEmail.get(1);
+			// Default case, for when none of the domain aliases apply...
+			emailWithoutObmDomain = email;
+			for (String domainAlias : domain.getNames()) {
+				if (emailDomain.equalsIgnoreCase(domainAlias)) {
+					emailWithoutObmDomain = emailWithoutDomain;
+				}
+			}
+		}
+		else {
+			emailWithoutObmDomain = email;
+		}
+		return emailWithoutObmDomain;
+	}
 
 		@Override
 		public Group create(ObmDomain domain, Group info) throws DaoException, GroupExistsException {
@@ -334,10 +410,13 @@ public class GroupDaoJdbcImpl implements GroupDao {
     @Override
     public Set<Group> listPublicGroups(ObmDomain domain) throws DaoException {
         Set<Group> groups = Sets.newHashSet();
-        String query = "SELECT " + FIELDS + " FROM UGroup WHERE group_domain_id = ? AND group_privacy = 0";
+        String query = "SELECT " + FIELDS +
+                        " FROM UGroup " +
+                        "JOIN GroupEntity ON group_id=groupentity_group_id " +
+                        "WHERE group_domain_id = ? AND group_privacy = 0";
 
         try (Connection conn = obmHelper.getConnection();
-				PreparedStatement ps = conn.prepareStatement(query)) {
+            PreparedStatement ps = conn.prepareStatement(query)) {
 
             ps.setInt(1, domain.getId());
 
@@ -368,6 +447,7 @@ public class GroupDaoJdbcImpl implements GroupDao {
                     "      SELECT " + FIELDS +
                     "        FROM UGroup " +
                     "  INNER JOIN Domain ON group_domain_id = domain_id" +
+                    "  INNER JOIN GroupEntity ON group_id=groupentity_group_id " +
                     "       WHERE domain_uuid = ?" +
                     "         AND group_ext_id = ?" +
                     "       LIMIT 1")) {
@@ -397,7 +477,8 @@ public class GroupDaoJdbcImpl implements GroupDao {
 				.email(rs.getString("group_email"))
 				.extId(extId != null ? GroupExtId.valueOf(extId) : null)
 				.name(rs.getString("group_name"))
-				.description(rs.getString("group_desc"));
+				.description(rs.getString("group_desc"))
+				.entityId(EntityId.valueOf(rs.getInt("groupentity_entity_id")));
 	}
 
     /**
@@ -752,6 +833,7 @@ public class GroupDaoJdbcImpl implements GroupDao {
 		String query =
 				"     SELECT " + FIELDS +
 				"       FROM UGroup " +
+				" INNER JOIN GroupEntity ON group_id=groupentity_group_id " +
 				" INNER JOIN of_usergroup " +
 				"         ON of_usergroup_group_id = group_id " +
 				" INNER JOIN UserObm " +

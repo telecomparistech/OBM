@@ -62,6 +62,9 @@ public interface GroupDao {
     Group get(ObmDomain domain, GroupExtId extId) throws GroupNotFoundException, DaoException;
     Group get(Id id) throws GroupNotFoundException, DaoException;
 
+    Group getByEmail(String email, ObmDomain domain) throws DaoException, GroupNotFoundException;
+    Group getByEmailWithUsers(String email, ObmDomain domain) throws DaoException, GroupNotFoundException;
+
     /**
      * Recursively get group information and members.
      *

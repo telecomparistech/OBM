@@ -124,12 +124,12 @@ public class GroupDaoJdbcImplTest implements H2TestClass {
 				.build();
         user1 = userDao.findUserById(1, domain1);
 
-        group4 = generateGroup(4, "existing-nousers-subgroups-child1");
-        group6 = generateGroup(6, "existing-users-subgroups-child1");
-        group7 = generateGroup(7, "existing-users-subgroups-child2");
+        group4 = generateGroup(4, "existing-nousers-subgroups-child1",11);
+        group6 = generateGroup(6, "existing-users-subgroups-child1", 13);
+        group7 = generateGroup(7, "existing-users-subgroups-child2", 14);
 
         nonexistentUser = generateUser(999);
-        nonexistentGroup = generateGroup(123, "nonexistent");
+        nonexistentGroup = generateGroup(123, "nonexistent", 666);
     }
 
     private ObmUser generateUser(int uid) {
@@ -153,12 +153,13 @@ public class GroupDaoJdbcImplTest implements H2TestClass {
                       .build();
     }
 
-    private Group generateGroup(int uid, String prefix) {
+    private Group generateGroup(int uid, String prefix, int entityId) {
         return Group.builder()
         			.uid(Id.valueOf(uid))
                     .extId(GroupExtId.valueOf(prefix))
                     .name(prefix + "-name")
                     .description(prefix + "-description")
+                    .entityId(EntityId.valueOf(entityId))
                     .build();
     }
 
@@ -185,9 +186,50 @@ public class GroupDaoJdbcImplTest implements H2TestClass {
     				.gid(1000)
     				.name("Utilisateurs")
     				.extId(GroupExtId.valueOf("users"))
+    				.entityId(EntityId.valueOf(33))
     				.build();
 
     	assertThat(dao.get(Group.Id.valueOf(21))).isEqualTo(group);
+    }
+
+    @Test
+    public void testGetByEmail() throws Exception {
+        Group group = Group.builder()
+                    .uid(Group.Id.valueOf(24))
+                    .name("group1")
+                    .email("group1")
+                    .extId(GroupExtId.valueOf("group1"))
+                    .entityId(EntityId.valueOf(36))
+                    .build();
+
+        assertThat(dao.getByEmail("group1", domain1)).isEqualTo(group);
+    }
+
+    @Test(expected=GroupNotFoundException.class)
+    public void testGetByEmailNotFound() throws Exception {
+        dao.getByEmail("idont@exist", domain1);
+    }
+
+    @Test
+    public void testGetByEmailWithUsers() throws Exception {
+        GroupExtId group1ExtId = GroupExtId.valueOf("group1");
+        Group group = Group.builder()
+                    .uid(Group.Id.valueOf(24))
+                    .name("group1")
+                    .email("group1")
+                    .extId(group1ExtId)
+                    .entityId(EntityId.valueOf(36))
+                    .user(user1)
+                    .build();
+
+        dao.addUser(domain1, group1ExtId, user1);
+
+        assertThat(dao.getByEmailWithUsers("group1", domain1)).isEqualTo(group);
+    }
+
+    @Test(expected=GroupNotFoundException.class)
+    public void testGetByEmailWithUsersNotFound() throws Exception {
+        dao.getByEmailWithUsers("idont@exist", domain1);
     }
 
     @Test
@@ -356,7 +398,7 @@ public class GroupDaoJdbcImplTest implements H2TestClass {
     @Test
     public void testCreateGroup() throws Exception {
         String prefix = "created-group";
-        Group group = generateGroup(18, prefix);
+        Group group = generateGroup(18, prefix, 25);
         Group createdGroup = dao.create(domain1, group);
         testGroupBase(prefix, createdGroup);
 
@@ -367,7 +409,7 @@ public class GroupDaoJdbcImplTest implements H2TestClass {
     @Test(expected = GroupExistsException.class)
     public void testDuplicateCreate() throws Exception {
         String prefix = "created-group-duplicate";
-        Group group = generateGroup(18, prefix);
+        Group group = generateGroup(18, prefix, 25);
 
         // This should work
         Group createdGroup = dao.create(domain1, group);
@@ -443,7 +485,7 @@ public class GroupDaoJdbcImplTest implements H2TestClass {
 
     @Test(expected = GroupRecursionException.class)
     public void testAddSubgroupRecursion() throws Exception {
-        Group parent = generateGroup(18, "addusersubgroup-group-parent");
+        Group parent = generateGroup(18, "addusersubgroup-group-parent", 25);
         dao.addSubgroup(domain1, parent.getExtId(), parent.getExtId());
     }
 
@@ -455,7 +497,7 @@ public class GroupDaoJdbcImplTest implements H2TestClass {
     @Test
     public void testAddUserSubgroup() throws Exception {
         GroupExtId parentId = GroupExtId.valueOf("addusersubgroup-group-parent");
-        Group childGroup = generateGroup(18, "addusersubgroup-group-child");
+        Group childGroup = generateGroup(18, "addusersubgroup-group-child", 25);
         dao.addUser(domain1, parentId, user1);
         dao.addSubgroup(domain1, parentId, childGroup.getExtId());
 
@@ -509,7 +551,8 @@ public class GroupDaoJdbcImplTest implements H2TestClass {
 				.builder()
 				.name("group")
 				.extId(GroupExtId.valueOf("extIdGroup"))
-				.email("group@domain");
+				.email("group@domain")
+				.entityId(EntityId.valueOf(39));
 
 		Group createdGroup = dao.create(domain1, groupBuilder.build());
 
@@ -531,7 +574,8 @@ public class GroupDaoJdbcImplTest implements H2TestClass {
 				.name("group")
 				.extId(GroupExtId.valueOf("extIdGroup"))
 				.privateGroup(true)
-				.email("group@domain");
+				.email("group@domain")
+				.entityId(EntityId.valueOf(39));
 
 		Group createdGroup = dao.create(domain1, groupBuilder.build());
 
@@ -673,6 +717,7 @@ public class GroupDaoJdbcImplTest implements H2TestClass {
 						.name("group1")
 						.description("group1-description")
 						.extId(GroupExtId.valueOf("group1-id"))
+						.entityId(EntityId.valueOf(34))
 						.build())
 				.add(Group
 						.builder()
@@ -680,6 +725,7 @@ public class GroupDaoJdbcImplTest implements H2TestClass {
 						.name("group2")
 						.description("group2-description")
 						.extId(GroupExtId.valueOf("group2-id"))
+						.entityId(EntityId.valueOf(35))
 						.build())
 				.add(Group
 						.builder()
@@ -687,6 +733,7 @@ public class GroupDaoJdbcImplTest implements H2TestClass {
 						.name("group3")
 						.email("group3")
 						.extId(GroupExtId.valueOf("group3"))
+						.entityId(EntityId.valueOf(38))
 						.build())
 				.build();
 

@@ -17046,7 +17046,13 @@ INSERT INTO entity (entity_mailing)
         (true), // <- Global Domain
         (true),
         (true), // <- Groups
-        (true);
+        (true),
+        (true), // users group
+        (true), // group1-id group
+        (true), // group2-id group
+        (true), // group1 group
+        (true), // group2 group
+        (true); // group3 group
 
 INSERT INTO domain (domain_name, domain_uuid, domain_label) VALUES ('test.tlse.lng', 'ac21bc0c-f816-4c52-8bb9-e50cfbfec5b6', 'test.tlse.lng');
 INSERT INTO domainentity (domainentity_entity_id, domainentity_domain_id) VALUES (1, 1);
@@ -17202,7 +17208,13 @@ INSERT INTO groupentity (groupentity_entity_id, groupentity_group_id)
         (24, 17),
         (25, 18),
         (26, 19),
-        (27, 20);
+        (27, 20),
+        (33, 21),
+        (34, 22),
+        (35, 23),
+        (36, 24),
+        (37, 25),
+        (38, 26);
 
 INSERT INTO userobmgroup (userobmgroup_userobm_id, userobmgroup_group_id) VALUES (1, 2);
 INSERT INTO userobmgroup (userobmgroup_userobm_id, userobmgroup_group_id) VALUES (2, 4);
