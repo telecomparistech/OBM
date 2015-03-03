@@ -29,6 +29,9 @@
  * ***** END LICENSE BLOCK ***** */
 package fr.aliacom.obm.common.calendar;
 
+import java.util.List;
+import java.util.Set;
+
 import org.obm.domain.dao.UserDao;
 import org.obm.provisioning.Group;
 import org.obm.provisioning.dao.GroupDao;
@@ -46,10 +49,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
@@ -82,12 +88,7 @@ public class AttendeeServiceJdbcImpl implements AttendeeService {
 		ObmUser user = userDao.findUser(email, domain);
 		
 		if (user != null) {
-			return UserAttendee
-					.builder()
-					.entityId(user.getEntityId())
-					.displayName(DisplayNameUtils.getDisplayName(user.getCommonName(), user.getFirstName(), user.getLastName()))
-					.email(user.getEmailAtDomain())
-					.build();
+			return attendeeFromUser(user);
 		}
 		
 		return null;
@@ -163,6 +164,69 @@ public class AttendeeServiceJdbcImpl implements AttendeeService {
 	}
 
 	@Override
+	public ImmutableList<Attendee> flattenAttendees(List<Attendee> attendees, String organizerEmail, ObmDomain domain) {
+		return ImmutableList.copyOf(findFlattenedAttendeesSet(attendees, organizerEmail, domain));
+	}
+
+	private Set<Attendee> findFlattenedAttendeesSet(List<Attendee> attendees, String organizerEmail, ObmDomain domain) {
+		NormalAndGroupAttendees normalAndGroupAttendees = extractNormalAndGroupAttendees(attendees);
+		Set<Attendee> flattenedAttendees = Sets.newLinkedHashSet();
+		for (Attendee normalAttendee : normalAndGroupAttendees.normalAttendees) {
+			flattenedAttendees.add(normalAttendee);
+		}
+		for (GroupAttendee groupAttendee : normalAndGroupAttendees.groupAttendees) {
+			List<UserAttendee> memberAttendees = findMemberAttendees(
+					groupAttendee, organizerEmail, domain);
+			for (Attendee memberAttendee : memberAttendees) {
+				if (memberAttendee.isOrganizer() && !flattenedAttendees.contains(memberAttendee)) {
+					// Don't add the organizer if not explicitly in the list
+					// of attendees
+					continue;
+				}
+				flattenedAttendees.add(memberAttendee);
+			}
+		}
+		return flattenedAttendees;
+	}
+
+	private NormalAndGroupAttendees extractNormalAndGroupAttendees(List<Attendee> attendees) {
+		ImmutableList.Builder<Attendee> normalAttsBuilder = ImmutableList.builder();
+		ImmutableList.Builder<GroupAttendee> groupAttsBuilder = ImmutableList.builder();
+		for (Attendee att : attendees) {
+			if (att instanceof GroupAttendee) {
+				groupAttsBuilder.add((GroupAttendee) att);
+			}
+			else {
+				normalAttsBuilder.add(att);
+			}
+		}
+		return new NormalAndGroupAttendees(normalAttsBuilder.build(), groupAttsBuilder.build());
+	}
+
+	private ImmutableList<UserAttendee> findMemberAttendees(final GroupAttendee groupAttendee, final String organizerEmail, ObmDomain domain) {
+		Group group;
+		try {
+			group = this.groupDao.getByEmailWithUsers(groupAttendee.getEmail(), domain);
+		} catch (DaoException | GroupNotFoundException e) {
+			throw Throwables.propagate(e);
+		}
+
+		return ImmutableList.copyOf(Iterables.transform(group.getUsers(), new Function<ObmUser, UserAttendee> () {
+
+			@Override
+			public UserAttendee apply(ObmUser obmUser) {
+						UserAttendee userAttendee = attendeeFromUser(obmUser);
+						userAttendee.setParticipation(groupAttendee.getParticipation());
+						userAttendee.setParticipationRole(groupAttendee.getParticipationRole());
+						userAttendee.setPercent(groupAttendee.getPercent());
+						userAttendee.setOrganizer(userAttendee.getEmail().equals(organizerEmail));
+						return userAttendee;
+			}
+			
+		}));
+	}
+
+	@Override
 	public Attendee findAttendee(String name, String email, boolean createContactIfNeeded, ObmDomain domain, Integer ownerId) {
 		Attendee attendee = findUserAttendee(name, email, domain);
 
@@ -180,7 +244,18 @@ public class AttendeeServiceJdbcImpl implements AttendeeService {
 		
 		return attendee;
 	}
-	
+
+	private UserAttendee attendeeFromUser(ObmUser user) {
+		return UserAttendee
+				.builder()
+				.entityId(user.getEntityId())
+				.displayName(
+						DisplayNameUtils.getDisplayName(user.getCommonName(), user.getFirstName(),
+								user.getLastName()))
+				.email(user.getEmailAtDomain())
+				.build();
+	}
+
 	private ContactAttendee attendeeFromContact(Contact contact) {
 		return ContactAttendee
 				.builder()
@@ -188,6 +263,17 @@ public class AttendeeServiceJdbcImpl implements AttendeeService {
 				.displayName(DisplayNameUtils.getDisplayName(contact.getCommonname(), contact.getFirstname(), contact.getLastname()))
 				.email(Iterables.get(contact.getEmails().values(), 0).get())
 				.build();
+	}
+
+	private class NormalAndGroupAttendees {
+		final ImmutableList<Attendee> normalAttendees;
+		final ImmutableList<GroupAttendee> groupAttendees;
+
+		public NormalAndGroupAttendees(ImmutableList<Attendee> normalAttendees,
+				ImmutableList<GroupAttendee> groupAttendees) {
+			this.normalAttendees = normalAttendees;
+			this.groupAttendees = groupAttendees;
+		}
 	}
 
 }

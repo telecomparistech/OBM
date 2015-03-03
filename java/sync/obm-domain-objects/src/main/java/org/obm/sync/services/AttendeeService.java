@@ -29,11 +29,15 @@
  * ***** END LICENSE BLOCK ***** */
 package org.obm.sync.services;
 
+import java.util.List;
+
 import org.obm.sync.calendar.Attendee;
 import org.obm.sync.calendar.ContactAttendee;
 import org.obm.sync.calendar.GroupAttendee;
 import org.obm.sync.calendar.ResourceAttendee;
 import org.obm.sync.calendar.UserAttendee;
+
+import com.google.common.collect.ImmutableList;
 
 import fr.aliacom.obm.common.domain.ObmDomain;
 
@@ -49,4 +53,5 @@ public interface AttendeeService {
 
 	Attendee findAttendee(String name, String email, boolean createContactIfNeeded, ObmDomain domain, Integer userId);
 	
+	ImmutableList<Attendee> flattenAttendees(List<Attendee> attendees, String organizerEmail, ObmDomain domain);
 }

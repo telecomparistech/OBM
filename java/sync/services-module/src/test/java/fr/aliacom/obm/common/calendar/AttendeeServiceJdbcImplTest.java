@@ -36,6 +36,7 @@ import static org.easymock.EasyMock.expect;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.sql.SQLException;
+import java.util.List;
 
 import org.easymock.IMocksControl;
 import org.junit.After;
@@ -53,14 +54,18 @@ import org.obm.domain.dao.UserDaoJdbcImpl;
 import org.obm.domain.dao.UserPatternDao;
 import org.obm.guice.GuiceModule;
 import org.obm.guice.GuiceRunner;
+import org.obm.provisioning.Group;
 import org.obm.provisioning.dao.GroupDao;
+import org.obm.provisioning.dao.GroupDaoJdbcImpl;
 import org.obm.provisioning.dao.ProfileDao;
+import org.obm.provisioning.dao.exceptions.GroupNotFoundException;
 import org.obm.sync.auth.ServerFault;
 import org.obm.sync.base.EmailAddress;
 import org.obm.sync.book.Contact;
 import org.obm.sync.calendar.Attendee;
 import org.obm.sync.calendar.ContactAttendee;
 import org.obm.sync.calendar.EventExtId;
+import org.obm.sync.calendar.GroupAttendee;
 import org.obm.sync.calendar.ResourceAttendee;
 import org.obm.sync.calendar.UserAttendee;
 import org.obm.sync.dao.EntityId;
@@ -69,6 +74,7 @@ import org.obm.sync.services.AttendeeService;
 import org.obm.sync.solr.SolrHelper;
 import org.obm.utils.ObmHelper;
 
+import com.google.common.collect.ImmutableList;
 import com.google.inject.AbstractModule;
 import com.google.inject.Inject;
 
@@ -157,9 +163,11 @@ public class AttendeeServiceJdbcImplTest {
 				.addMockedMethod("findAttendeeResourceFromEmailForUser")
 				.addMockedMethod("findAttendeeResourceFromNameForUser")
 				.createMock(mocksControl);
-		groupDao = createMockBuilder(GroupDao.class)
-				.withConstructor(ObmHelper.class)
-				.withArgs(obmHelper)
+		groupDao = createMockBuilder(GroupDaoJdbcImpl.class)
+				.withConstructor(UserDao.class, ObmHelper.class)
+				.withArgs(userDao, obmHelper)
+				.addMockedMethod("getByEmail")
+				.addMockedMethod("getByEmailWithUsers")
 				.createMock(mocksControl);
 		
 		attendeeService = new AttendeeServiceJdbcImpl(userDao, groupDao, contactDao, resourceDao);
@@ -334,6 +342,7 @@ public class AttendeeServiceJdbcImplTest {
 	@Test
 	public void testFindAttendeeReturnsResourceIfNoUserFound() throws Exception {
 		expect(userDao.findUser(eq("johndoe@test.tlse.lng"), eq(domain))).andReturn(null).once();
+		expect(groupDao.getByEmail(eq("johndoe@test.tlse.lng"), eq(domain))).andThrow(new GroupNotFoundException("")).once();
 		expect(resourceDao.findAttendeeResourceFromEmailForUser("johndoe@test.tlse.lng", 1)).andReturn(resource).once();
 		mocksControl.replay();
 		
@@ -347,6 +356,7 @@ public class AttendeeServiceJdbcImplTest {
 	@Test
 	public void testFindAttendeeReturnsContactIfNoUserAndNoResourceFound() throws Exception {
 		expect(userDao.findUser(eq("johndoe@test.tlse.lng"), eq(domain))).andReturn(null).once();
+		expect(groupDao.getByEmail(eq("johndoe@test.tlse.lng"), eq(domain))).andThrow(new GroupNotFoundException("")).once();
 		expect(resourceDao.findAttendeeResourceFromEmailForUser("johndoe@test.tlse.lng", 1)).andReturn(null).once();
 		expect(resourceDao.findAttendeeResourceFromNameForUser("johndoe", 1)).andReturn(null).once();
 		expect(contactDao.findAttendeeContactFromEmailForUser(eq("johndoe@test.tlse.lng"), eq(1))).andReturn(externalContact).once();
@@ -362,6 +372,7 @@ public class AttendeeServiceJdbcImplTest {
 	@Test
 	public void testFindAttendeeCreatesCollectedContactInLastResort() throws Exception {
 		expect(userDao.findUser(eq("johndoe@test.tlse.lng"), eq(domain))).andReturn(null).once();
+		expect(groupDao.getByEmail(eq("johndoe@test.tlse.lng"), eq(domain))).andThrow(new GroupNotFoundException("")).once();
 		expect(resourceDao.findAttendeeResourceFromEmailForUser("johndoe@test.tlse.lng", 1)).andReturn(null).once();
 		expect(resourceDao.findAttendeeResourceFromNameForUser("johndoe", 1)).andReturn(null).once();
 		expect(contactDao.findAttendeeContactFromEmailForUser(eq("johndoe@test.tlse.lng"), eq(1))).andReturn(null).once();
@@ -375,4 +386,131 @@ public class AttendeeServiceJdbcImplTest {
 		assertThat(attendee.getEntityId()).isEqualTo(EntityId.valueOf(2));
 	}
 
+	@Test
+	public void testFlattenAttendees() throws Exception {
+		ObmUser groupMember1 = ObmUser.builder()
+				.uid(1)
+				.domain(domain)
+				.login(UserLogin.valueOf("member1"))
+				.emails(UserEmails.builder().domain(domain).addAddress("member1").build())
+				.build();
+		ObmUser groupMember2 = ObmUser.builder()
+				.uid(2)
+				.domain(domain)
+				.login(UserLogin.valueOf("member2"))
+				.emails(UserEmails.builder().domain(domain).addAddress("member2").build())
+				.build();
+		Group group = Group.builder()
+				.uid(Group.Id.valueOf(666))
+				.email("group")
+				.user(groupMember1)
+				.user(groupMember2)
+				.build();
+		expect(groupDao.getByEmailWithUsers("group@test.tlse.lng", domain)).andReturn(group);
+
+		UserAttendee userAttendee = UserAttendee.builder().email("user@test.tlse.lng").build();
+		ContactAttendee contactAttendee = ContactAttendee.builder().email("contact@another.domain")
+				.build();
+		ResourceAttendee resourceAttendee = ResourceAttendee.builder()
+				.email("resource@test.tlse.lng").build();
+		GroupAttendee groupAttendee = GroupAttendee.builder().email("group@test.tlse.lng").build();
+		UserAttendee member1Attendee = UserAttendee.builder().email("member1@test.tlse.lng")
+				.build();
+		UserAttendee member2Attendee = UserAttendee.builder().email("member2@test.tlse.lng")
+				.build();
+
+		List<Attendee> attendees = ImmutableList.of(userAttendee, contactAttendee, groupAttendee,
+				resourceAttendee);
+		ImmutableList<Attendee> expectedAttendees = ImmutableList.of(userAttendee, contactAttendee,
+				resourceAttendee, member1Attendee, member2Attendee);
+		mocksControl.replay();
+
+		assertThat(attendeeService.flattenAttendees(attendees, "user@test.tlse.lng", domain))
+				.isEqualTo(expectedAttendees);
+	}
+
+	@Test
+	public void testFlattenAttendeesEmptyGroup() throws Exception {
+		Group group = Group.builder()
+				.uid(Group.Id.valueOf(666))
+				.email("group")
+				.build();
+		expect(groupDao.getByEmailWithUsers("group@test.tlse.lng", domain)).andReturn(group);
+
+		UserAttendee userAttendee = UserAttendee.builder().email("user@test.tlse.lng").build();
+		ContactAttendee contactAttendee = ContactAttendee.builder().email("contact@another.domain")
+				.build();
+		ResourceAttendee resourceAttendee = ResourceAttendee.builder()
+				.email("resource@test.tlse.lng").build();
+		GroupAttendee groupAttendee = GroupAttendee.builder().email("group@test.tlse.lng").build();
+
+		List<Attendee> attendees = ImmutableList.of(userAttendee, contactAttendee, groupAttendee,
+				resourceAttendee);
+		ImmutableList<Attendee> expectedAttendees = ImmutableList.of(userAttendee, contactAttendee,
+				resourceAttendee);
+		mocksControl.replay();
+
+		assertThat(attendeeService.flattenAttendees(attendees, "user@test.tlse.lng", domain))
+				.isEqualTo(expectedAttendees);
+	}
+
+	@Test
+	public void testFlattenAttendeesWithOrganizerInGroupButNotInAttendeeList() throws Exception {
+		ObmUser groupMember1 = ObmUser.builder()
+				.uid(1)
+				.domain(domain)
+				.login(UserLogin.valueOf("member1"))
+				.emails(UserEmails.builder().domain(domain).addAddress("member1").build())
+				.build();
+		ObmUser groupMember2 = ObmUser.builder()
+				.uid(2)
+				.domain(domain)
+				.login(UserLogin.valueOf("member2"))
+				.emails(UserEmails.builder().domain(domain).addAddress("member2").build())
+				.build();
+		Group group = Group.builder()
+				.uid(Group.Id.valueOf(666))
+				.email("group")
+				.user(groupMember1)
+				.user(groupMember2)
+				.build();
+		expect(groupDao.getByEmailWithUsers("group@test.tlse.lng", domain)).andReturn(group);
+
+		UserAttendee userAttendee = UserAttendee.builder().email("user@test.tlse.lng").build();
+		ContactAttendee contactAttendee = ContactAttendee.builder().email("contact@another.domain")
+				.build();
+		ResourceAttendee resourceAttendee = ResourceAttendee.builder()
+				.email("resource@test.tlse.lng").build();
+		GroupAttendee groupAttendee = GroupAttendee.builder().email("group@test.tlse.lng").build();
+		UserAttendee member2Attendee = UserAttendee.builder().email("member2@test.tlse.lng")
+				.build();
+
+		List<Attendee> attendees = ImmutableList.of(userAttendee, contactAttendee, groupAttendee,
+				resourceAttendee);
+		ImmutableList<Attendee> expectedAttendees = ImmutableList.of(userAttendee, contactAttendee,
+				resourceAttendee, member2Attendee);
+		mocksControl.replay();
+
+		assertThat(attendeeService.flattenAttendees(attendees, "member1@test.tlse.lng", domain))
+				.isEqualTo(expectedAttendees);
+	}
+
+	@Test(expected = RuntimeException.class)
+	public void testFlattenAttendeesGroupNotFound() throws Exception {
+		expect(groupDao.getByEmailWithUsers("group@test.tlse.lng", domain)).andThrow(
+				new GroupNotFoundException(""));
+
+		UserAttendee userAttendee = UserAttendee.builder().email("user@test.tlse.lng").build();
+		ContactAttendee contactAttendee = ContactAttendee.builder().email("contact@another.domain")
+				.build();
+		ResourceAttendee resourceAttendee = ResourceAttendee.builder()
+				.email("resource@test.tlse.lng").build();
+		GroupAttendee groupAttendee = GroupAttendee.builder().email("group@test.tlse.lng").build();
+
+		List<Attendee> attendees = ImmutableList.of(userAttendee, contactAttendee, groupAttendee,
+				resourceAttendee);
+		mocksControl.replay();
+
+		attendeeService.flattenAttendees(attendees, "user@test.tlse.lng", domain);
+	}
 }

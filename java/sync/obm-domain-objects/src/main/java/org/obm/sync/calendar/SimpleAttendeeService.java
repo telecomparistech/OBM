@@ -29,8 +29,11 @@
  * ***** END LICENSE BLOCK ***** */
 package org.obm.sync.calendar;
 
+import java.util.List;
+
 import org.obm.sync.services.AttendeeService;
 
+import com.google.common.collect.ImmutableList;
 import com.google.inject.Singleton;
 
 import fr.aliacom.obm.common.domain.ObmDomain;
@@ -61,6 +64,14 @@ public class SimpleAttendeeService implements AttendeeService {
 	@Override
 	public GroupAttendee findGroupAttendee(String name, String email, ObmDomain domain) {
 		return GroupAttendee.builder().email(email).displayName(name).build();
+	}
+
+	@Override
+	public ImmutableList<Attendee> flattenAttendees(List<Attendee> attendees,
+			String organizerEmail,
+			ObmDomain domain) {
+		return attendees instanceof ImmutableList ? (ImmutableList<Attendee>)attendees :
+			ImmutableList.copyOf(attendees);
 	}
 
 }
