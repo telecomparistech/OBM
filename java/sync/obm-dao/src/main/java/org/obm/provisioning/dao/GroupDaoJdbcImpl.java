@@ -40,7 +40,6 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Set;
 
-import org.obm.dbcp.DatabaseConnectionProvider;
 import org.obm.domain.dao.UserDao;
 import org.obm.provisioning.Group;
 import org.obm.provisioning.Group.Builder;
@@ -75,16 +74,14 @@ public class GroupDaoJdbcImpl implements GroupDao {
     /** The first group_gid to use. UI code assumes 1000 here */
     private final int firstGidUser = 1000;
 
-    private final DatabaseConnectionProvider connectionProvider;
-    private final UserDao userDao;
-    private final ObmHelper obmHelper;
+	private final UserDao userDao;
+	private final ObmHelper obmHelper;
 
-    @Inject
-    private GroupDaoJdbcImpl(DatabaseConnectionProvider connectionProvider, UserDao userDao, ObmHelper obmHelper) {
-        this.connectionProvider = connectionProvider;
-        this.userDao = userDao;
-        this.obmHelper = obmHelper;
-    }
+	@Inject
+	private GroupDaoJdbcImpl(UserDao userDao, ObmHelper obmHelper) {
+		this.userDao = userDao;
+		this.obmHelper = obmHelper;
+	}
 
 	@Override
 	public void addUser(ObmDomain domain, Group.Id groupId, ObmUser user) throws DaoException {
@@ -126,7 +123,7 @@ public class GroupDaoJdbcImpl implements GroupDao {
 
 	@Override
     public Group get(ObmDomain domain, GroupExtId id) throws DaoException, GroupNotFoundException {
-        try (Connection conn = connectionProvider.getConnection()) {
+        try (Connection conn = obmHelper.getConnection()) {
             return this.getGroupBuilder(conn, domain, id).build();
         } catch (SQLException e) {
             throw new DaoException(e);
@@ -157,16 +154,16 @@ public class GroupDaoJdbcImpl implements GroupDao {
     public Group getRecursive(ObmDomain domain, GroupExtId id, boolean includeUsers, int groupDepth) throws DaoException, GroupNotFoundException {
         Set<GroupExtId> recursedGroups = Sets.newHashSet();
 
-        try (Connection conn = connectionProvider.getConnection()) {
+        try (Connection conn = obmHelper.getConnection()) {
             return buildRecursiveGroup(conn, getGroupBuilder(conn, domain, id), domain, id, includeUsers, groupDepth, recursedGroups);
         } catch (SQLException e) {
             throw new DaoException(e);
         }
     }
 
-    	@Override
-    	public Group create(ObmDomain domain, Group info) throws DaoException, GroupExistsException {
-	    	try (Connection conn =  connectionProvider.getConnection()) {
+		@Override
+		public Group create(ObmDomain domain, Group info) throws DaoException, GroupExistsException {
+	    	try (Connection conn =  obmHelper.getConnection()) {
 	    		GroupExtId extId = info.getExtId();
 	    		if (extIdExists(conn, extId)) {
 	    			throw new GroupExistsException(extId);
@@ -265,7 +262,7 @@ public class GroupDaoJdbcImpl implements GroupDao {
 
     @Override
     public void addSubgroup(ObmDomain domain, GroupExtId group, GroupExtId subgroup) throws DaoException, GroupNotFoundException, GroupRecursionException {
-        try (Connection conn = connectionProvider.getConnection()) {
+        try (Connection conn = obmHelper.getConnection()) {
             GroupExtId foundParent = hasAncestorWithId(conn, domain, subgroup, group);
             if (foundParent != null) {
                 // Cyclic group
@@ -762,7 +759,7 @@ public class GroupDaoJdbcImpl implements GroupDao {
 				"      WHERE userobm_ext_id = ? " +
 				"        AND userobm_domain_id = ? ";
 
-		try (Connection con = connectionProvider.getConnection();
+		try (Connection con = obmHelper.getConnection();
 				PreparedStatement ps = con.prepareStatement(query)) {
 
 			ps.setString(1, userExtId.getExtId());
