@@ -3136,6 +3136,14 @@ public class CalendarBindingImplTest {
 		CalendarRights calendarToRights = CalendarRights.builder()
 				.addRights(calendar, EnumSet.of(Right.ACCESS, Right.WRITE))
 				.build();
+
+		ImmutableList<Attendee> typedAttendees = ImmutableList.of(userAttendee, contactAttendee, resourceAttendee);
+		expect(attendeeService.flattenAttendees(
+				typedAttendees, userAttendee.getEmail(), user.getDomain())).andReturn(typedAttendees).atLeastOnce();
+		ImmutableList<Attendee> exceptionTypedAttendees = ImmutableList.of((Attendee)userAttendee);
+		expect(attendeeService.flattenAttendees(
+				exceptionTypedAttendees, userAttendee.getEmail(), user.getDomain())).andReturn(exceptionTypedAttendees).atLeastOnce();
+
 		expect(helperService.listRightsOnCalendars(token, ImmutableSet.of(calendar))).andReturn(
 				calendarToRights).atLeastOnce();
 
@@ -3181,6 +3189,10 @@ public class CalendarBindingImplTest {
 		toStoreEvent.setEntityId(EntityId.valueOf(7));
 
 		mockCommitedOperationNewEvent(incommingEvent, clientId);
+
+		ImmutableList<Attendee> attendees = ImmutableList.of(userAttendee, contactAttendee);
+		expect(attendeeService.flattenAttendees(attendees, userAttendee.getEmail(), user.getDomain())).andReturn(attendees);
+	
 		expect(helperService.canWriteOnCalendar(token, userEmail)).andReturn(true).atLeastOnce();
 		CalendarRights calendarToRights = CalendarRights.builder()
 				.addRights(userEmail, EnumSet.of(Right.ACCESS, Right.WRITE))
@@ -3226,6 +3238,9 @@ public class CalendarBindingImplTest {
 		event.setEntityId(EntityId.valueOf(5));
 
 		mockCommitedOperationNewEvent(event, clientId);
+		ImmutableList<Attendee> typedAttendees = ImmutableList.of(userAttendee, contactAttendee);
+		expect(attendeeService.flattenAttendees(
+				typedAttendees, userAttendee.getEmail(), user.getDomain())).andReturn(typedAttendees);
 		expect(helperService.canWriteOnCalendar(token, userEmail)).andReturn(true).atLeastOnce();
 		CalendarRights calendarToRights = CalendarRights.builder()
 				.addRights(userEmail, EnumSet.of(Right.ACCESS, Right.WRITE))
@@ -3265,6 +3280,9 @@ public class CalendarBindingImplTest {
 		event.setEntityId(EntityId.valueOf(5));
 
 		mockCommitedOperationExistingEvent(event, clientId);
+		ImmutableList<Attendee> typedAttendees = ImmutableList.of(userAttendee, contactAttendee);
+		expect(attendeeService.flattenAttendees(
+				typedAttendees, userAttendee.getEmail(), user.getDomain())).andReturn(typedAttendees);
 		expect(helperService.canWriteOnCalendar(token, userEmail)).andReturn(true).anyTimes();
 		CalendarRights calendarToRights = CalendarRights.builder()
 				.addRights(userEmail, EnumSet.of(Right.ACCESS, Right.WRITE))
@@ -3308,6 +3326,12 @@ public class CalendarBindingImplTest {
 		event.getRecurrence().setKind(RecurrenceKind.daily);
 
 		mockCommitedOperationNewEvent(event, clientId);
+		ImmutableList<Attendee> attendees = ImmutableList.of(userAttendee, contactAttendee);
+		expect(attendeeService.flattenAttendees(
+				attendees, userEmail, user.getDomain())).andReturn(attendees).atLeastOnce();
+		ImmutableList<Attendee> exceptionAttendees = ImmutableList.of((Attendee)userAttendee);
+		expect(attendeeService.flattenAttendees(
+				exceptionAttendees, userEmail, user.getDomain())).andReturn(exceptionAttendees);
 		expect(helperService.canWriteOnCalendar(token, userEmail)).andReturn(true).anyTimes();
 		CalendarRights calendarToRights2 = CalendarRights.builder()
 				.addRights(userEmail, EnumSet.of(Right.ACCESS, Right.WRITE))
@@ -4184,18 +4208,25 @@ public class CalendarBindingImplTest {
 
 		AttendeeService attendeeService = mocksControl.createMock(AttendeeService.class);
 
+		UserAttendee typedOwnerAttendee = UserAttendee.builder().displayName("name").email("user@test").build();
 		expect(attendeeService.findUserAttendee("user", "user@test", owner.getDomain()))
-			.andReturn(UserAttendee.builder().displayName("name").email("user@test").build());
+			.andReturn(typedOwnerAttendee);
 
+		UserAttendee typedUserAttendee = UserAttendee.builder().displayName("name").email("user@obm.org").build();
 		expect(attendeeService.findAttendee("user", "user@obm.org", true, owner.getDomain(), owner.getUid()))
-			.andReturn(UserAttendee.builder().displayName("name").email("user@obm.org").build());
+			.andReturn(typedUserAttendee);
 
+		ContactAttendee typedContactAttendee = ContactAttendee.builder().displayName("contact").email("contact@obm.org").build();
 		expect(attendeeService.findAttendee("contact", "contact@obm.org", true, owner.getDomain(), owner.getUid()))
-			.andReturn(ContactAttendee.builder().displayName("contact").email("contact@obm.org").build());
+			.andReturn(typedContactAttendee);
 
+		ResourceAttendee typedResourceAttendee = ResourceAttendee.builder().displayName("resource").email("resource@obm.org").build();
 		expect(attendeeService.findAttendee("resource", "resource@obm.org", true, owner.getDomain(), owner.getUid()))
-			.andReturn(ResourceAttendee.builder().displayName("resource").email("resource@obm.org").build());
-
+			.andReturn(typedResourceAttendee);
+		ImmutableList<Attendee> typedAttendees = ImmutableList.of(typedOwnerAttendee,
+				typedUserAttendee, typedContactAttendee, typedResourceAttendee);
+		expect(attendeeService.flattenAttendees(typedAttendees,
+				ownerAttendee.getEmail(), owner.getDomain())).andReturn(typedAttendees);
 		mocksControl.replay();
 		CalendarBindingImpl binding =
 				new CalendarBindingImpl(null, null, null, null, null, null, null, null, null, null, attendeeService, null, null);
@@ -4203,10 +4234,10 @@ public class CalendarBindingImplTest {
 		mocksControl.verify();
 
 		assertThat(event.getAttendees()).containsOnly(
-				UserAttendee.builder().displayName("name").email("user@test").build(),
-				UserAttendee.builder().displayName("name").email("user@obm.org").build(),
-				ContactAttendee.builder().displayName("contact").email("contact@obm.org").build(),
-				ResourceAttendee.builder().displayName("resource").email("resource@obm.org").build());
+				typedOwnerAttendee,
+				typedUserAttendee,
+				typedContactAttendee,
+				typedResourceAttendee);
 	}
 
 	@Test
@@ -4222,17 +4253,26 @@ public class CalendarBindingImplTest {
 
 		AttendeeService attendeeService = mocksControl.createMock(AttendeeService.class);
 
+		UserAttendee typedUserAttendee = UserAttendee.builder().displayName("name").email("user@test").build();
 		expect(attendeeService.findUserAttendee("user", "user@test", owner.getDomain()))
-			.andReturn(UserAttendee.builder().displayName("name").email("user@test").build());
+			.andReturn(typedUserAttendee);
 
+		ContactAttendee typedContactAttendee1 = ContactAttendee.builder().displayName("user").email("user@obm.org").build();
 		expect(attendeeService.findContactAttendee("user", "user@obm.org", true, owner.getDomain(), owner.getUid()))
-			.andReturn(ContactAttendee.builder().displayName("user").email("user@obm.org").build());
+			.andReturn(typedContactAttendee1);
 
+		ContactAttendee typedContactAttendee2 = ContactAttendee.builder().displayName("contact").email("contact@obm.org").build();
 		expect(attendeeService.findContactAttendee("contact", "contact@obm.org", true, owner.getDomain(), owner.getUid()))
-			.andReturn(ContactAttendee.builder().displayName("contact").email("contact@obm.org").build());
+			.andReturn(typedContactAttendee2);
 
+		ContactAttendee typedContactAttendee3 = ContactAttendee.builder().displayName("resource").email("resource@obm.org").build();
 		expect(attendeeService.findContactAttendee("resource", "resource@obm.org", true, owner.getDomain(), owner.getUid()))
-			.andReturn(ContactAttendee.builder().displayName("resource").email("resource@obm.org").build());
+			.andReturn(typedContactAttendee3);
+
+		ImmutableList<Attendee> typedAttendees = ImmutableList.of(
+				typedUserAttendee, typedContactAttendee1, typedContactAttendee2, typedContactAttendee3);
+		expect(attendeeService.flattenAttendees(
+				typedAttendees, typedUserAttendee.getEmail(), owner.getDomain())).andReturn(typedAttendees);
 
 		mocksControl.replay();
 		CalendarBindingImpl binding =

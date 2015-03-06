@@ -1739,11 +1739,12 @@ public class CalendarBindingImpl implements ICalendar {
 			typedAttendee.setParticipation(attendee.getParticipation());
 			typedAttendee.setParticipationRole(attendee.getParticipationRole());
 			typedAttendee.setPercent(attendee.getPercent());
-
 			typedAttendees.add(typedAttendee);
 		}
-		
-		event.setAttendees(typedAttendees);
+		// Transform the group attendees into their UserAttendee members
+		// This "freezes" the list of attendees members of a group G to the members of the group G at the time of insertion
+		// However, it is way less complex than handling group attendees
+		event.setAttendees(attendeeService.flattenAttendees(typedAttendees, owner.getEmail(), owner.getDomain()));
 	}
 
 	private Attendee findRequiredOwnerAttendee(Event event, ObmUser owner) throws ServerFault {
