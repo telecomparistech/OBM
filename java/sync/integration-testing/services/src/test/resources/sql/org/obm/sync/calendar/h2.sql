@@ -8,6 +8,7 @@ CREATE DOMAIN vopacity AS VARCHAR(32);
 CREATE DOMAIN vpartstat AS VARCHAR(32);
 CREATE DOMAIN vrole AS VARCHAR(32);
 CREATE DOMAIN vkind AS VARCHAR(32);
+CREATE DOMAIN recurrence_kind AS VARCHAR(32);
 
 --
 -- Table userobm

@@ -301,7 +301,7 @@ public class CalendarDaoJdbcImpl implements CalendarDao {
 				"?, " + // event_date
 				"?, " + // event_duration
 				"?, " + // event_allday
-				"?, " + // event_repeatking
+				"?::recurrence_kind, " + // event_repeatkind
 				"?, " + // event_repeatfrequence
 				"?, " + // event_repeatdays
 				"?, " + // event_endrepeat
@@ -1881,7 +1881,7 @@ public class CalendarDaoJdbcImpl implements CalendarDao {
 				+ "event_title=?, event_location=?, "
 				+ "event_category1_id=?, event_priority=?, "
 				+ "event_privacy=?, event_date=?, event_duration=?, "
-				+ "event_allday=?, event_repeatkind=?, "
+				+ "event_allday=?, event_repeatkind=?::recurrence_kind, "
 				+ "event_repeatfrequence=?, event_repeatdays=?, "
 				+ "event_endrepeat=?, event_completed=?, "
 				+ "event_url=?, event_description=?, event_origin=?, "
