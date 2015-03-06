@@ -76,8 +76,8 @@ public class GroupDaoJdbcImpl implements GroupDao {
 	private static final String FIELDS = "group_id, group_ext_id, group_name, group_desc, group_timecreate, group_timeupdate, " +
 			"group_privacy, group_archive, group_email, group_gid, groupentity_entity_id";
 
-    /** The first group_gid to use. UI code assumes 1000 here */
-    private final int firstGidUser = 1000;
+	/** The first group_gid to use. UI code assumes 1000 here */
+	private final int firstGidUser = 1000;
 
 	private final UserDao userDao;
 	private final ObmHelper obmHelper;
