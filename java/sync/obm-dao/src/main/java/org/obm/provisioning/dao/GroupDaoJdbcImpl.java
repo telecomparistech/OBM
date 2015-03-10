@@ -83,7 +83,8 @@ public class GroupDaoJdbcImpl implements GroupDao {
 	private final ObmHelper obmHelper;
 
 	@Inject
-	private GroupDaoJdbcImpl(UserDao userDao, ObmHelper obmHelper) {
+	@VisibleForTesting
+	public GroupDaoJdbcImpl(UserDao userDao, ObmHelper obmHelper) {
 		this.userDao = userDao;
 		this.obmHelper = obmHelper;
 	}
