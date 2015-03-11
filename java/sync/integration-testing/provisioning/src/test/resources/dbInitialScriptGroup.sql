@@ -195,6 +195,11 @@ CREATE TABLE userentity (
     userentity_user_id integer NOT NULL
 );
 
+CREATE TABLE groupentity (
+    groupentity_entity_id integer PRIMARY KEY AUTO_INCREMENT,
+    groupentity_group_id integer NOT NULL
+);
+
 CREATE TABLE userobmgroup (
     userobmgroup_group_id integer PRIMARY KEY AUTO_INCREMENT,
     userobmgroup_userobm_id integer NOT NULL
@@ -268,11 +273,28 @@ INSERT INTO entity (entity_mailing)
         (true),
         (true),
         (true),
-        (true);
+        (true),
+        (true), // AdminExtId group
+        (true), // GroupWithUsers group
+        (true), // GroupWithSubGroup group
+        (true), // GroupWhoSubgroupHaveUser group
+        (true), // GroupA group
+        (true), // GroupAA group
+        (true); // GroupAB group
         
 INSERT INTO userentity (userentity_entity_id, userentity_user_id)
     VALUES (4, 1), (5, 2);
- 
+
+INSERT INTO groupentity (groupentity_entity_id, groupentity_group_id)
+    VALUES
+    (6, 1),
+    (7, 2),
+    (8, 3),
+    (9, 4),
+    (10, 5),
+    (11, 6),
+    (12, 7);
+
 INSERT INTO UserObm (userobm_domain_id, userobm_ext_id, userobm_login, userobm_password, userobm_password_type, userobm_perms, userobm_lastname, userobm_firstname, userobm_uid, userobm_gid, userobm_archive, userobm_email, userobm_mail_server_id) 
 	 VALUES (1, 'Admin0ExtId','admin0','admin0','PLAIN','admin', 'Lastname', 'Firstname', '1000', '512', '0', 'admin0', NULL),
 		(2, 'User1','user1','','','', '', '', '2002', '512', '0', 'user1', NULL);

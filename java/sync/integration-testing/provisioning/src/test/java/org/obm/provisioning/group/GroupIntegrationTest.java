@@ -773,20 +773,24 @@ public class GroupIntegrationTest {
 			.body(containsString(
 				"[" +
 					"{" +
-						"\"id\":\"GroupAB\"," +
-						"\"url\":\"/ac21bc0c-f816-4c52-8bb9-e50cfbfec5b6/groups/GroupAB\"" +
-					"}," +
-					"{" +
 						"\"id\":\"GroupAA\"," +
 						"\"url\":\"/ac21bc0c-f816-4c52-8bb9-e50cfbfec5b6/groups/GroupAA\"" +
+					"}," +
+					"{" +
+						"\"id\":\"AdminExtId\"," +
+						"\"url\":\"/ac21bc0c-f816-4c52-8bb9-e50cfbfec5b6/groups/AdminExtId\"" +
+					"}," +
+					"{" +
+						"\"id\":\"GroupAB\"," +
+						"\"url\":\"/ac21bc0c-f816-4c52-8bb9-e50cfbfec5b6/groups/GroupAB\"" +
 					"}," +
 					"{" +
 						"\"id\":\"GroupA\"," +
 						"\"url\":\"/ac21bc0c-f816-4c52-8bb9-e50cfbfec5b6/groups/GroupA\"" +
 					"}," +
 					"{" +
-						"\"id\":\"AdminExtId\"," +
-						"\"url\":\"/ac21bc0c-f816-4c52-8bb9-e50cfbfec5b6/groups/AdminExtId\"" +
+						"\"id\":\"GroupWithUsers\"," +
+						"\"url\":\"/ac21bc0c-f816-4c52-8bb9-e50cfbfec5b6/groups/GroupWithUsers\"" +
 					"}," +
 					"{" +
 						"\"id\":\"GroupWithSubGroup\"," +
@@ -795,10 +799,6 @@ public class GroupIntegrationTest {
 					"{" +
 						"\"id\":\"GroupWhoSubgroupHaveUser\"," +
 						"\"url\":\"/ac21bc0c-f816-4c52-8bb9-e50cfbfec5b6/groups/GroupWhoSubgroupHaveUser\"" +
-					"}," +
-					"{" +
-						"\"id\":\"GroupWithUsers\"," +
-						"\"url\":\"/ac21bc0c-f816-4c52-8bb9-e50cfbfec5b6/groups/GroupWithUsers\"" +
 					"}" +
 				"]")).
 		when()
