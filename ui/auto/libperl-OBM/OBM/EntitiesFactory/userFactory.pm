@@ -110,7 +110,10 @@ sub next {
 
     while( defined($self->{'entitiesDescList'}) && (my $userDesc = $self->{'entitiesDescList'}->fetchrow_hashref()) ) {
         require OBM::Entities::obmUser;
-        if( !($self->{'currentEntity'} = OBM::Entities::obmUser->new( $self->{'parentDomain'}, $userDesc )) ) {
+        my $userId = $userDesc->{userobm_id};
+        my $groupEmails = exists $self->{userIdToGroupEmails}->{$userId} ?
+            $self->{userIdToGroupEmails}->{$userId} : [];
+        if( !($self->{'currentEntity'} = OBM::Entities::obmUser->new( $self->{'parentDomain'}, $userDesc, $groupEmails )) ) {
             next;
 
         }else {
@@ -231,9 +234,11 @@ sub _loadEntities {
 
     my $userTablePrefix = '';
     my $hostTablePrefix = '';
+    my $groupTablePrefix = '';
     if( $self->{'updateType'} !~ /^(UPDATE_ALL|UPDATE_ENTITY)$/ ) {
         $userTablePrefix = 'P_';
         $hostTablePrefix = 'P_';
+        $groupTablePrefix = 'P_';
     }
 
     my $query = 'SELECT '.$userTablePrefix.'UserObm.*,
@@ -265,9 +270,32 @@ sub _loadEntities {
         return 1;
     }
 
+    my $userIdToGroupEmails = $self->_find_group_emails($dbHandler, $groupTablePrefix);
+    if (!defined $userIdToGroupEmails) {
+        $self->_log( 'chargement des groupes depuis la BD impossible', 1 );
+        return 1;
+    }
+    $self->{userIdToGroupEmails} = $userIdToGroupEmails;
+
     return 0;
 }
 
+sub _find_group_emails {
+    my ($self, $dbHandler, $prefix) = @_;
+    my $query = "SELECT of_usergroup_user_id, group_email ".
+        "FROM ${prefix}ugroup JOIN ${prefix}of_usergroup ON group_id=of_usergroup_group_id ".
+        "WHERE group_domain_id=".$self->{domainId}." AND group_email IS NOT NULL";
+    my $queryResult;
+    if (!defined $dbHandler->execQuery($query, \$queryResult)) {
+        return undef;
+    }
+    my %userIdToGroupEmails;
+    while(my @row = $queryResult->fetchrow_array) {
+        my ($userobm_id, $group_email) = @row;
+        push @{ $userIdToGroupEmails{$userobm_id} }, $group_email;
+    }
+    return \%userIdToGroupEmails;
+}
 
 sub _loadCurrentEntityCategories {
     my $self = shift;

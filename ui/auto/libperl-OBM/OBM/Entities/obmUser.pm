@@ -49,9 +49,11 @@ use OBM::Parameters::common;
 # Needed
 sub new {
     my $class = shift;
-    my( $parent, $userDesc ) = @_;
+    my( $parent, $userDesc, $groupEmails ) = @_;
 
-    my $self = bless { }, $class;
+    my $self = bless {
+        groupEmails => $groupEmails,
+    }, $class;
 
     if( ref($parent) ne 'OBM::Entities::obmDomain' ) {
         $self->_log( 'domaine père incorrect', 1 );
@@ -741,47 +743,43 @@ sub getSieveVacation {
         return undef;
     }
 
-    my $boxEmails = $self->{'entityDesc'}->{'userobm_main_email'};
-    my $boxEmailsAlias = $self->{'entityDesc'}->{'userobm_alias_email'};
-
+    my @allEmailsWithDomain = @{$self->_getAllEmailsWithDomain()};
     # If no mail addess, then no vacation message
-    if( ($#{$boxEmails} < 0) && ($#{$boxEmailsAlias} < 0) ) {
+    if (!@allEmailsWithDomain) {
         $self->_log( $self->getDescription().' : pas d\'adresses mails défini, message d\'absence désactivé', 2 );
         return undef;
     }
 
+    my $emailStrings = join(", ", map { qq("$_") } @allEmailsWithDomain);
     # does not answer vacation for mailing lists or SPAMS
-    my $vacationMsg = 'if allof (
+    my $vacationMsg = qq/if allof (
 not header :contains "Precedence" ["bulk","list"],
 not header :contains "X-Spam-Flag" "YES"
 ) {
-  vacation :addresses [ ';
+  vacation :addresses [ $emailStrings ]/;
 
-    my $firstAddress = 1;
-    for( my $i=0; $i<=$#{$boxEmails}; $i++ ) {
-        if( !$firstAddress ) {
-            $vacationMsg .= ', ';
-        }else {
-            $firstAddress = 0;
-        }
-
-        $vacationMsg .= '"'.$boxEmails->[$i].'"';
-    }
-
-    for( my $i=0; $i<=$#{$boxEmailsAlias}; $i++ ) {
-        if( !$firstAddress ) {
-            $vacationMsg .= ', ';
-        }else {
-            $firstAddress = 0;
-        }
-
-        $vacationMsg .= '"'.$boxEmailsAlias->[$i].'"';
-    }
-
-    $vacationMsg .= ' ] "' . $self->_escapeSieveVacationMessage($self->{'entityDesc'}->{'userobm_vacation_message'}) . '";
+    $vacationMsg .= '"'. $self->_escapeSieveVacationMessage($self->{'entityDesc'}->{'userobm_vacation_message'}) . '";
 }';
 
     return $vacationMsg;
+}
+
+sub _getAllEmailsWithDomain {
+    my $self = shift;
+
+    my $boxEmails = $self->{'entityDesc'}->{'userobm_main_email'};
+    my $boxEmailsAlias = $self->{'entityDesc'}->{'userobm_alias_email'};
+    my $groupEmails = $self->{'groupEmails'};
+    my @allEmails = (@$boxEmails,
+        defined $boxEmailsAlias ? @$boxEmailsAlias : (),
+        @$groupEmails);
+    my $domainName = $self->{'parent'}->getDesc('domain_name');
+    my $addDomain = sub {
+        my ($email) = @_;
+        return $email =~ /\@/ ? $email : $email.'@'.$domainName;
+    };
+    my @allEmailsWithDomain = map { &$addDomain($_) } @allEmails;
+    return \@allEmailsWithDomain;
 }
 
 sub _escapeSieveVacationMessage() {
