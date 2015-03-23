@@ -265,7 +265,8 @@ INSERT INTO UGroup (group_domain_id, group_system, group_privacy, group_local, g
  (2, 0, 0, 4, 'GroupWhoSubgroupHaveUser', 0, 1002, 'GroupWhoSubgroupHaveUser', 'Group Who Subgroup Have User', 'group_with_subgroup@obm.org'),
  (2, 0, 0, 5, 'GroupA', 0, 1002, 'GroupA', 'Group A', 'groupA@obm.org'), 
  (2, 0, 0, 6, 'GroupAA', 0, 1002, 'GroupAA', 'Group AA', 'groupAA@obm.org'),
- (2, 0, 0, 7, 'GroupAB', 0, 1002, 'GroupAB', 'Group AB', 'groupAB@obm.org');
+ (2, 0, 0, 7, 'GroupAB', 0, 1002, 'GroupAB', 'Group AB', 'groupAB@obm.org'),
+ (2, 0, 1, 8, 'GroupPrivate', 0, 1003, 'GroupPrivate', 'Group Private', 'GroupPrivate@obm.org');
  
 INSERT INTO entity (entity_mailing)
     VALUES
@@ -293,7 +294,8 @@ INSERT INTO groupentity (groupentity_entity_id, groupentity_group_id)
     (9, 4),
     (10, 5),
     (11, 6),
-    (12, 7);
+    (12, 7),
+    (13, 8);
 
 INSERT INTO UserObm (userobm_domain_id, userobm_ext_id, userobm_login, userobm_password, userobm_password_type, userobm_perms, userobm_lastname, userobm_firstname, userobm_uid, userobm_gid, userobm_archive, userobm_email, userobm_mail_server_id) 
 	 VALUES (1, 'Admin0ExtId','admin0','admin0','PLAIN','admin', 'Lastname', 'Firstname', '1000', '512', '0', 'admin0', NULL),
